@@ -18,7 +18,7 @@ export function createLocalStorageAdapter(
 }
 
 export function emptyState(): PersistedState {
-  return { schemaVersion: SCHEMA_VERSION, habits: [] }
+  return { schemaVersion: SCHEMA_VERSION, habits: [], remindersEnabled: true }
 }
 
 /**
@@ -90,7 +90,11 @@ export function loadState(storage: StorageAdapter): PersistedState {
   const habits = Array.isArray(record.habits)
     ? record.habits.map(sanitizeHabit).filter((h): h is Habit => h !== null)
     : []
-  return { schemaVersion: SCHEMA_VERSION, habits }
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    habits,
+    remindersEnabled: record.remindersEnabled !== false,
+  }
 }
 
 export function saveState(

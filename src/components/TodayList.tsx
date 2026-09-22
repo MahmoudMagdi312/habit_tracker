@@ -51,6 +51,7 @@ function HabitRow({
             description: habit.description,
             icon: habit.icon,
             color: habit.color,
+            reminderTime: habit.reminderTime,
           }}
           onSubmit={(input) => {
             onEdit(input)

@@ -24,11 +24,14 @@ export default function HabitForm({
   )
   const [icon, setIcon] = useState(initialValues?.icon ?? ICONS[0])
   const [color, setColor] = useState(initialValues?.color ?? COLORS[0])
+  const [reminderTime, setReminderTime] = useState(
+    initialValues?.reminderTime ?? '',
+  )
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!name.trim()) return
-    onSubmit({ name, description, icon, color })
+    onSubmit({ name, description, icon, color, reminderTime })
   }
 
   return (
@@ -52,6 +55,16 @@ export default function HabitForm({
           value={description}
           onChange={(event) => setDescription(event.target.value)}
           placeholder="e.g. One glass after waking up"
+        />
+      </div>
+
+      <div className="field">
+        <label htmlFor="habit-reminder">Reminder time (optional)</label>
+        <input
+          id="habit-reminder"
+          type="time"
+          value={reminderTime}
+          onChange={(event) => setReminderTime(event.target.value)}
         />
       </div>
 

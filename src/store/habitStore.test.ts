@@ -396,3 +396,72 @@ describe('getStats / getAggregateStats', () => {
     expect(store.getStats('nope')).toBeNull()
   })
 })
+
+describe('reminders', () => {
+  it('defaults to enabled and persists the global toggle', () => {
+    const { store, storage } = makeStore()
+    expect(store.isRemindersEnabled()).toBe(true)
+
+    store.setRemindersEnabled(false)
+    expect(store.isRemindersEnabled()).toBe(false)
+
+    const reloaded = createHabitStore({ storage, now: () => NOW })
+    expect(reloaded.isRemindersEnabled()).toBe(false)
+  })
+
+  it('keeps legacy payloads (no toggle field) enabled', () => {
+    const storage = createMemoryStorage()
+    storage.raw = JSON.stringify({ schemaVersion: SCHEMA_VERSION, habits: [] })
+    const { store } = makeStore({ storage })
+    expect(store.isRemindersEnabled()).toBe(true)
+  })
+
+  it('turning the toggle off does not delete per-habit times', () => {
+    const { store } = makeStore()
+    const habit = store.createHabit({ name: 'Meditate', reminderTime: '07:30' })
+
+    store.setRemindersEnabled(false)
+
+    expect(store.getState().habits[0].reminderTime).toBe('07:30')
+    expect(habit.reminderTime).toBe('07:30')
+  })
+
+  it('notifies subscribers when the toggle changes', () => {
+    const { store } = makeStore()
+    const listener = vi.fn()
+    store.subscribe(listener)
+
+    store.setRemindersEnabled(false)
+    expect(listener).toHaveBeenCalledTimes(1)
+
+    store.setRemindersEnabled(false) // same value → no commit
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('stores a valid reminder time on create and rejects malformed ones', () => {
+    const { store } = makeStore()
+    const habit = store.createHabit({
+      name: 'Meditate',
+      reminderTime: ' 07:30 ',
+    })
+    expect(habit.reminderTime).toBe('07:30')
+
+    expect(() =>
+      store.createHabit({ name: 'Bad', reminderTime: '9am' }),
+    ).toThrow('HH:MM')
+    expect(store.getState().habits).toHaveLength(1)
+  })
+
+  it('sets, keeps, and clears the reminder time through updateHabit', () => {
+    const { store } = makeStore()
+    const habit = store.createHabit({ name: 'Meditate' })
+
+    store.updateHabit(habit.id, { name: 'Meditate', reminderTime: '21:00' })
+    expect(store.getState().habits[0].reminderTime).toBe('21:00')
+
+    // An update that doesn't mention the time (undefined) clears it,
+    // matching description semantics; the row form passes it back instead.
+    store.updateHabit(habit.id, { name: 'Meditate' })
+    expect(store.getState().habits[0].reminderTime).toBeUndefined()
+  })
+})

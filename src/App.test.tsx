@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import { createHabitStore } from './store/habitStore'
@@ -25,6 +25,16 @@ const NOW = new Date(2026, 8, 23, 10, 30)
 function makeStore() {
   const storage = createMemoryStorage()
   return { storage, store: createHabitStore({ storage, now: () => NOW }) }
+}
+
+/** Replaces the global Notification API; unstubbed automatically after each test. */
+function stubNotification(
+  permission: 'default' | 'granted' | 'denied',
+  requested: 'default' | 'granted' | 'denied' = permission,
+) {
+  const requestPermission = vi.fn(async () => requested)
+  vi.stubGlobal('Notification', { permission, requestPermission })
+  return { requestPermission }
 }
 
 describe('App', () => {
@@ -414,5 +424,74 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Today' }))
     expect(screen.getByRole('region', { name: 'Today' })).toBeInTheDocument()
     expect(screen.getByText('Run')).toBeInTheDocument()
+  })
+})
+
+describe('App reminders', () => {
+  it('creates a habit with a reminder time', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    render(<App store={store} />)
+
+    await user.click(
+      screen.getByRole('button', { name: 'Create your first habit' }),
+    )
+    await user.type(screen.getByLabelText('Name'), 'Meditate')
+    fireEvent.change(screen.getByLabelText('Reminder time (optional)'), {
+      target: { value: '07:30' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Create habit' }))
+
+    expect(store.getState().habits[0].reminderTime).toBe('07:30')
+  })
+
+  it('shows an enable button while permission is default', async () => {
+    const user = userEvent.setup()
+    const { requestPermission } = stubNotification('default', 'granted')
+    const { store } = makeStore()
+    render(<App store={store} />)
+
+    await user.click(
+      screen.getByRole('button', { name: 'Enable browser notifications' }),
+    )
+
+    expect(requestPermission).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('Notifications allowed')).toBeInTheDocument()
+  })
+
+  it('shows granted permission without the enable button', () => {
+    stubNotification('granted')
+    const { store } = makeStore()
+    render(<App store={store} />)
+
+    expect(screen.getByText('Notifications allowed')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Enable browser notifications' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('explains a denied permission state', () => {
+    stubNotification('denied')
+    const { store } = makeStore()
+    render(<App store={store} />)
+
+    expect(screen.getByText(/Notifications are blocked/)).toBeInTheDocument()
+    expect(screen.getByText(/site\s+settings/)).toBeInTheDocument()
+  })
+
+  it('toggles reminders globally without clearing habit times', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    store.createHabit({ name: 'Meditate', reminderTime: '07:30' })
+    render(<App store={store} />)
+
+    const toggle = screen.getByRole('checkbox', { name: 'Reminders' })
+    expect(toggle).toBeChecked()
+
+    await user.click(toggle)
+
+    expect(toggle).not.toBeChecked()
+    expect(store.isRemindersEnabled()).toBe(false)
+    expect(store.getState().habits[0].reminderTime).toBe('07:30')
   })
 })

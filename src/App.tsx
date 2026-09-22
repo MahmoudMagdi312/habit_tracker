@@ -1,8 +1,11 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import CalendarView from './components/CalendarView'
 import HabitForm from './components/HabitForm'
+import RemindersBar from './components/RemindersBar'
 import StatsView from './components/StatsView'
 import TodayList from './components/TodayList'
+import { createBrowserNotificationSender } from './reminders/notifications'
+import { createReminderScheduler } from './reminders/scheduler'
 import { defaultStore } from './store/defaultStore'
 import type { HabitStore } from './store/habitStore'
 
@@ -54,6 +57,21 @@ export default function App({
     })
   }
 
+  // Drive the reminder scheduler while the tab is open. Exact-minute matching
+  // inside the scheduler means a reminder missed with the tab closed is not
+  // replayed on load.
+  useEffect(() => {
+    const scheduler = createReminderScheduler({
+      getHabits: () => store.getState().habits,
+      isRemindersEnabled: () => store.isRemindersEnabled(),
+      now: () => new Date(),
+      notify: createBrowserNotificationSender(),
+    })
+    scheduler.tick()
+    const id = setInterval(() => scheduler.tick(), 15_000)
+    return () => clearInterval(id)
+  }, [store])
+
   return (
     <main>
       <h1>Habit Tracker</h1>
@@ -81,6 +99,11 @@ export default function App({
           Stats
         </button>
       </nav>
+
+      <RemindersBar
+        enabled={state.remindersEnabled}
+        onToggle={(enabled) => store.setRemindersEnabled(enabled)}
+      />
 
       {view === 'stats' ? (
         <StatsView
