@@ -87,7 +87,7 @@ export default function CalendarView({
               <button
                 type="button"
                 disabled={!cell.toggleable}
-                aria-label={`${monthName} ${cell.day}`}
+                aria-label={`${monthName} ${cell.day}, ${cell.state}`}
                 aria-pressed={cell.state === 'completed'}
                 onClick={() => onToggleDate(cell.date)}
               >

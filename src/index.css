@@ -43,6 +43,17 @@ button:hover {
   filter: brightness(1.08);
 }
 
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Visually-hidden radios need the ring on their visible label instead. */
+.choice:has(input:focus-visible) {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .empty-state {
   text-align: center;
   border: 2px dashed color-mix(in srgb, currentColor 30%, transparent);
@@ -137,6 +148,7 @@ button:hover {
 }
 
 .habit-form input[type='text'],
+.habit-form input[type='time'],
 .habit-form input:not([type]) {
   font: inherit;
   padding: 0.5rem 0.65rem;
@@ -190,6 +202,7 @@ button:hover {
   gap: 0.1rem;
   font-size: 0.85rem;
   white-space: nowrap;
+  padding: 0.3rem 0.65rem 0.3rem 0.35rem;
 }
 
 .streak-status {
@@ -235,6 +248,7 @@ button:hover {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  flex-wrap: wrap;
 }
 
 .row-actions button,
@@ -277,6 +291,7 @@ nav[aria-label='Views'] {
   display: flex;
   gap: 0.5rem;
   justify-content: center;
+  flex-wrap: wrap;
   margin-bottom: 1.25rem;
 }
 
@@ -464,6 +479,7 @@ nav[aria-label='Views'] button[aria-current='page'] {
   font-size: 1rem;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.4rem;
 }
 
@@ -568,4 +584,43 @@ nav[aria-label='Views'] button[aria-current='page'] {
   padding: 0.5rem 0.75rem;
   border: 2px solid var(--warn);
   border-radius: 0.5rem;
+}
+
+/* Phone-sized screens */
+
+@media (max-width: 480px) {
+  main {
+    width: min(32rem, 94vw);
+    margin-top: 3vh;
+  }
+
+  h1 {
+    font-size: 1.35rem;
+  }
+
+  .habit label {
+    padding: 0.55rem 0.65rem;
+    gap: 0.5rem;
+  }
+
+  .row-actions button {
+    padding: 0.4rem 0.75rem;
+  }
+
+  .empty-state {
+    padding: 1.5rem 0.75rem;
+  }
+
+  .calendar-controls button {
+    padding: 0.5rem 1rem;
+  }
+
+  .cell button {
+    font-size: 0.8rem;
+  }
+
+  .reminders-bar {
+    padding: 0.5rem 0.65rem;
+    gap: 0.5rem;
+  }
 }

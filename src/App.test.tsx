@@ -253,8 +253,12 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Calendar' }))
 
     expect(screen.getByText('September 2026')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'September 1' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'September 30' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'September 1, blocked' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'September 30, future' }),
+    ).toBeInTheDocument()
     expect(
       screen.getByRole('combobox', { name: 'Select habit' }),
     ).toBeInTheDocument()
@@ -274,24 +278,26 @@ describe('App', () => {
     render(<App store={store} />)
     await user.click(screen.getByRole('button', { name: 'Calendar' }))
 
-    const sep5 = screen.getByRole('button', { name: 'September 5' })
+    const sep5 = screen.getByRole('button', { name: 'September 5, blocked' })
     expect(sep5).toBeDisabled()
     expect(sep5.closest('.cell')).toHaveClass('blocked')
 
-    const sep21 = screen.getByRole('button', { name: 'September 21' })
+    const sep21 = screen.getByRole('button', {
+      name: 'September 21, completed',
+    })
     expect(sep21).toHaveAttribute('aria-pressed', 'true')
     expect(sep21.closest('.cell')).toHaveClass('completed')
 
-    const sep22 = screen.getByRole('button', { name: 'September 22' })
+    const sep22 = screen.getByRole('button', { name: 'September 22, missed' })
     expect(sep22).toHaveAttribute('aria-pressed', 'false')
     expect(sep22).toBeEnabled()
     expect(sep22.closest('.cell')).toHaveClass('missed')
 
     expect(
-      screen.getByRole('button', { name: 'September 23' }).closest('.cell'),
+      screen.getByRole('button', { name: 'September 23, today' }).closest('.cell'),
     ).toHaveClass('today')
 
-    const sep26 = screen.getByRole('button', { name: 'September 26' })
+    const sep26 = screen.getByRole('button', { name: 'September 26, future' })
     expect(sep26).toBeDisabled()
     expect(sep26.closest('.cell')).toHaveClass('future')
   })
@@ -308,10 +314,10 @@ describe('App', () => {
     render(<App store={store} />)
     await user.click(screen.getByRole('button', { name: 'Calendar' }))
 
-    const sep22 = screen.getByRole('button', { name: 'September 22' })
+    const sep22 = screen.getByRole('button', { name: 'September 22, missed' })
     await user.click(sep22)
     expect(
-      screen.getByRole('button', { name: 'September 22' }),
+      screen.getByRole('button', { name: 'September 22, completed' }),
     ).toHaveAttribute('aria-pressed', 'true')
     expect(store.getState().habits[0].completedDates).toEqual([
       '2026-09-21',
@@ -333,7 +339,9 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Next month' }))
     expect(screen.getByText('October 2026')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'October 1' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'October 1, future' }),
+    ).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Previous month' }))
     await user.click(screen.getByRole('button', { name: 'Previous month' }))
@@ -557,5 +565,122 @@ describe('App data', () => {
     expect(
       screen.queryByRole('alertdialog', { name: 'Confirm reset' }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('App keyboard & accessible names', () => {
+  async function tabUntil(
+    user: ReturnType<typeof userEvent.setup>,
+    target: Element,
+  ) {
+    for (let i = 0; i < 40 && document.activeElement !== target; i++) {
+      await user.tab()
+    }
+    expect(document.activeElement).toBe(target)
+  }
+
+  it('reaches the nav by keyboard and switches views with Enter', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    store.createHabit({ name: 'Run' })
+    render(<App store={store} />)
+
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Today' })).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Calendar' })).toHaveFocus()
+
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('region', { name: 'Calendar' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Calendar' }),
+    ).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('checks off a habit with the keyboard alone (Tab + Space)', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    store.createHabit({ name: 'Meditate', description: 'Ten quiet minutes' })
+    render(<App store={store} />)
+
+    const checkbox = screen.getByRole('checkbox', { name: /Meditate/ })
+    await tabUntil(user, checkbox)
+    expect(checkbox).not.toBeChecked()
+
+    await user.keyboard(' ')
+
+    expect(checkbox).toBeChecked()
+    expect(store.getState().habits[0].completedDates).toContain('2026-09-23')
+  })
+
+  it('toggles a calendar day with the keyboard alone', async () => {
+    const user = userEvent.setup()
+    const storage = createMemoryStorage()
+    let clock = new Date(2026, 8, 21, 9, 0)
+    const store = createHabitStore({ storage, now: () => clock })
+    const habit = store.createHabit({ name: 'Run' })
+    store.toggleCompletion(habit.id) // done Sep 21, missed Sep 22
+
+    clock = new Date(2026, 8, 23, 9, 0)
+    render(<App store={store} />)
+
+    const calendarNav = screen.getByRole('button', { name: 'Calendar' })
+    await tabUntil(user, calendarNav)
+    await user.keyboard('{Enter}')
+
+    const cell = screen.getByRole('button', { name: 'September 22, missed' })
+    await tabUntil(user, cell)
+    await user.keyboard('{Enter}')
+
+    expect(
+      screen.getByRole('button', { name: 'September 22, completed' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(store.getState().habits[0].completedDates).toEqual([
+      '2026-09-21',
+      '2026-09-22',
+    ])
+  })
+
+  it('gives every interactive control an accessible name in all views', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    store.createHabit({
+      name: 'Meditate',
+      description: 'Ten quiet minutes',
+      reminderTime: '07:30',
+    })
+    render(<App store={store} />)
+
+    const ROLES = ['button', 'checkbox', 'combobox', 'radio', 'textbox'] as const
+    function expectAllNamed(where: string) {
+      let checked = 0
+      for (const role of ROLES) {
+        for (const el of screen.queryAllByRole(role)) {
+          expect(el, `${role} in ${where}`).toHaveAccessibleName()
+          checked += 1
+        }
+      }
+      expect(checked, `no interactive controls found in ${where}`).toBeGreaterThan(0)
+    }
+
+    // Today view (habit row, reminders toggle, data section)
+    expectAllNamed('Today')
+
+    // The create form: text fields, radios for icon and color
+    await user.click(screen.getByRole('button', { name: 'Add habit' }))
+    expectAllNamed('create form')
+    expect(screen.getAllByRole('radio').length).toBeGreaterThan(0)
+    await user.click(screen.getByRole('button', { name: 'Create habit' }))
+
+    // Calendar: month nav, habit select, day cells
+    await user.click(screen.getByRole('button', { name: 'Calendar' }))
+    expectAllNamed('Calendar')
+    expect(
+      screen.getByRole('combobox', { name: 'Select habit' }),
+    ).toBeInTheDocument()
+
+    // Stats: no extra controls beyond nav, but nothing unlabeled either
+    await user.click(screen.getByRole('button', { name: 'Stats' }))
+    expectAllNamed('Stats')
   })
 })
