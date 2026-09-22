@@ -465,3 +465,67 @@ describe('reminders', () => {
     expect(store.getState().habits[0].reminderTime).toBeUndefined()
   })
 })
+
+describe('exportData / reset', () => {
+  it('exports version, habits with completions, and settings', () => {
+    const { store } = makeStore()
+    store.createHabit({
+      name: 'Meditate',
+      description: 'Ten minutes',
+      reminderTime: '07:30',
+    })
+    store.toggleCompletion(store.getState().habits[0].id)
+    store.setRemindersEnabled(false)
+
+    const payload = store.exportData()
+
+    expect(payload.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(payload.remindersEnabled).toBe(false)
+    expect(payload.habits).toHaveLength(1)
+    expect(payload.habits[0].name).toBe('Meditate')
+    expect(payload.habits[0].reminderTime).toBe('07:30')
+    expect(payload.habits[0].completedDates).toEqual([TODAY])
+    // Survives a JSON round-trip byte-for-byte (this is what gets downloaded).
+    expect(JSON.parse(JSON.stringify(payload))).toEqual(payload)
+  })
+
+  it('stays in sync as the store changes', () => {
+    const { store } = makeStore()
+    const habit = store.createHabit({ name: 'Run' })
+
+    store.toggleCompletion(habit.id)
+    expect(store.exportData().habits[0].completedDates).toEqual([TODAY])
+
+    store.deleteHabit(habit.id)
+    expect(store.exportData().habits).toEqual([])
+  })
+
+  it('reset clears habits and settings, persisted, and notifies', () => {
+    const { store, storage } = makeStore()
+    store.createHabit({ name: 'Meditate', reminderTime: '07:30' })
+    store.setRemindersEnabled(false)
+    const listener = vi.fn()
+    store.subscribe(listener)
+
+    store.reset()
+
+    expect(store.getState()).toEqual({ habits: [], remindersEnabled: true })
+    expect(listener).toHaveBeenCalledTimes(1)
+
+    const parsed = JSON.parse(storage.raw!)
+    expect(parsed.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(parsed.habits).toEqual([])
+    expect(parsed.remindersEnabled).toBe(true)
+
+    // A fresh store over the same storage starts clean ("empty state").
+    const reloaded = createHabitStore({ storage, now: () => NOW })
+    expect(reloaded.getState().habits).toEqual([])
+    expect(reloaded.isRemindersEnabled()).toBe(true)
+  })
+
+  it('reset on an already-empty store is safe', () => {
+    const { store } = makeStore()
+    expect(() => store.reset()).not.toThrow()
+    expect(store.getState().habits).toEqual([])
+  })
+})

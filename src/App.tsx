@@ -1,9 +1,11 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import CalendarView from './components/CalendarView'
+import DataSection from './components/DataSection'
 import HabitForm from './components/HabitForm'
 import RemindersBar from './components/RemindersBar'
 import StatsView from './components/StatsView'
 import TodayList from './components/TodayList'
+import { downloadExport } from './data/export'
 import { createBrowserNotificationSender } from './reminders/notifications'
 import { createReminderScheduler } from './reminders/scheduler'
 import { defaultStore } from './store/defaultStore'
@@ -169,6 +171,11 @@ export default function App({
           )}
         </section>
       )}
+
+      <DataSection
+        onExport={() => downloadExport(store)}
+        onReset={() => store.reset()}
+      />
     </main>
   )
 }

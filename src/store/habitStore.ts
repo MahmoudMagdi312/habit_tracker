@@ -1,4 +1,5 @@
 import type { CreateHabitInput, Habit, HabitStoreState } from '../domain/types'
+import type { PersistedState } from '../domain/types'
 import { toLocalDateKey } from '../domain/dates'
 import { currentStreak, streakStatus } from '../domain/streaks'
 import type { StreakInfo } from '../domain/streaks'
@@ -8,8 +9,10 @@ import { aggregateStats, habitStats } from '../domain/stats'
 import type { AggregateStats, HabitStats } from '../domain/stats'
 import {
   createLocalStorageAdapter,
+  emptyState,
   loadState,
   saveState,
+  SCHEMA_VERSION,
 } from '../storage/storage'
 import type { StorageAdapter } from '../storage/storage'
 
@@ -39,6 +42,10 @@ export interface HabitStore {
   archiveHabit(id: string): void
   /** Permanently removes a habit and its history. No-op for unknown ids. */
   deleteHabit(id: string): void
+  /** Backup payload: schema version, habits (with completions), and settings. */
+  exportData(): PersistedState
+  /** Wipes habits and settings, persisting the empty state. Notifies subscribers. */
+  reset(): void
 }
 
 export interface StoreDependencies {
@@ -188,6 +195,11 @@ export function createHabitStore(deps: StoreDependencies = {}): HabitStore {
     deleteHabit(id) {
       if (!state.habits.some((h) => h.id === id)) return
       commit({ ...state, habits: state.habits.filter((h) => h.id !== id) })
+    },
+    exportData: () => ({ ...state, schemaVersion: SCHEMA_VERSION }),
+    reset() {
+      const { schemaVersion: _version, ...empty } = emptyState()
+      commit(empty)
     },
   }
 }

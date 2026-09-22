@@ -495,3 +495,67 @@ describe('App reminders', () => {
     expect(store.getState().habits[0].reminderTime).toBe('07:30')
   })
 })
+
+describe('App data', () => {
+  it('exports the payload as a dated JSON download', async () => {
+    const user = userEvent.setup()
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:mock')
+    const revokeObjectURL = vi.fn((_url: string) => undefined)
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL })
+    const downloads: string[] = []
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        downloads.push(this.download)
+      })
+
+    const { store } = makeStore()
+    store.createHabit({ name: 'Meditate' })
+    render(<App store={store} />)
+
+    await user.click(screen.getByRole('button', { name: 'Export data' }))
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1)
+    expect(createObjectURL.mock.calls[0][0]).toBeInstanceOf(Blob)
+    expect(downloads).toEqual(['habit-tracker-2026-09-23.json'])
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock')
+    clickSpy.mockRestore()
+  })
+
+  it('cancels a reset confirmation without touching data', async () => {
+    const user = userEvent.setup()
+    const { store, storage } = makeStore()
+    store.createHabit({ name: 'Meditate' })
+    render(<App store={store} />)
+
+    await user.click(screen.getByRole('button', { name: 'Reset all data' }))
+    expect(
+      screen.getByRole('alertdialog', { name: 'Confirm reset' }),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(store.getState().habits).toHaveLength(1)
+    expect(JSON.parse(storage.raw!).habits).toHaveLength(1)
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it('resets to the empty state after confirmation', async () => {
+    const user = userEvent.setup()
+    const { store, storage } = makeStore()
+    store.createHabit({ name: 'Meditate' })
+    render(<App store={store} />)
+
+    await user.click(screen.getByRole('button', { name: 'Reset all data' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Confirm reset all data' }),
+    )
+
+    expect(store.getState().habits).toEqual([])
+    expect(JSON.parse(storage.raw!).habits).toEqual([])
+    expect(screen.getByText('No habits yet.')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('alertdialog', { name: 'Confirm reset' }),
+    ).not.toBeInTheDocument()
+  })
+})

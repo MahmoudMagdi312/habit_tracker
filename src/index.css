@@ -539,3 +539,33 @@ nav[aria-label='Views'] button[aria-current='page'] {
 .reminders-bar .perm.warn {
   color: var(--warn);
 }
+
+/* Data (export & reset) */
+
+.data-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.data-section h2 {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+  opacity: 0.75;
+}
+
+.data-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.confirm-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--warn);
+  border-radius: 0.5rem;
+}

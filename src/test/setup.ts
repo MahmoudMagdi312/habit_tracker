@@ -7,5 +7,6 @@ import { cleanup } from '@testing-library/react'
 afterEach(cleanup)
 // Tests stub globals (e.g. Notification); never leak them between tests.
 afterEach(() => {
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
