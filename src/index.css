@@ -441,3 +441,65 @@ nav[aria-label='Views'] button[aria-current='page'] {
 .calendar-legend .key.future::before {
   opacity: 0.45;
 }
+
+/* Stats */
+
+.stats-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.stat-card {
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+}
+
+.stat-card h2,
+.stat-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.stat-card.aggregate {
+  border-color: var(--accent);
+}
+
+.archived-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  border: 1px solid currentColor;
+  border-radius: 0.3rem;
+  padding: 0.05rem 0.35rem;
+  margin-left: 0.5rem;
+}
+
+.stat-card dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.stat-row dt {
+  opacity: 0.75;
+}
+
+.stat-row dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import { createHabitStore } from './store/habitStore'
@@ -346,5 +346,73 @@ describe('App', () => {
     expect(
       screen.getByRole('combobox', { name: 'Select habit' }),
     ).toHaveValue(yoga.id)
+  })
+
+  it('shows per-habit and aggregate stats in the Stats view', async () => {
+    const user = userEvent.setup()
+    const storage = createMemoryStorage()
+    let clock = new Date(2026, 8, 1, 12, 0)
+    const store = createHabitStore({ storage, now: () => clock })
+    const run = store.createHabit({ name: 'Run', icon: '🏃' })
+    const meditate = store.createHabit({ name: 'Meditate', icon: '🧘' })
+
+    // Both complete Sep 1–3; only Meditate continues Sep 4–23.
+    for (let day = 1; day <= 3; day++) {
+      clock = new Date(2026, 8, day, 20, 0)
+      store.toggleCompletion(run.id)
+      store.toggleCompletion(meditate.id)
+    }
+    for (let day = 4; day <= 23; day++) {
+      clock = new Date(2026, 8, day, 20, 0)
+      store.toggleCompletion(meditate.id)
+    }
+    clock = new Date(2026, 8, 23, 21, 0)
+
+    render(<App store={store} />)
+    await user.click(screen.getByRole('button', { name: 'Stats' }))
+
+    const region = screen.getByRole('region', { name: 'Stats' })
+    expect(region).toBeInTheDocument()
+
+    // Run: chain broke after Sep 3 → current 0, best 3, 3/23 = 13% everywhere.
+    const runCard = screen
+      .getByText('Run')
+      .closest('.stat-card')! as HTMLElement
+    expect(within(runCard).getByText('🔥 0 days')).toBeInTheDocument()
+    expect(within(runCard).getByText('3 days')).toBeInTheDocument()
+    expect(within(runCard).getAllByText('13%')).toHaveLength(3)
+
+    // Meditate: 23-day living chain, 100% in every window.
+    const meditateCard = screen
+      .getByText('Meditate')
+      .closest('.stat-card')! as HTMLElement
+    expect(within(meditateCard).getByText('🔥 23 days')).toBeInTheDocument()
+    expect(within(meditateCard).getByText('23 days')).toBeInTheDocument()
+    expect(within(meditateCard).getAllByText('100%')).toHaveLength(3)
+
+    // Aggregate across active habits: (3 + 23) / (23 + 23) = 57%.
+    const overallCard = screen
+      .getByText('Overall')
+      .closest('.stat-card')! as HTMLElement
+    expect(within(overallCard).getAllByText('57%')).toHaveLength(3)
+  })
+
+  it('navigates between all three views', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    store.createHabit({ name: 'Run' })
+    render(<App store={store} />)
+
+    await user.click(screen.getByRole('button', { name: 'Stats' }))
+    expect(screen.getByRole('region', { name: 'Stats' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Calendar' }))
+    expect(
+      screen.getByRole('region', { name: 'Calendar' }),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Today' }))
+    expect(screen.getByRole('region', { name: 'Today' })).toBeInTheDocument()
+    expect(screen.getByText('Run')).toBeInTheDocument()
   })
 })

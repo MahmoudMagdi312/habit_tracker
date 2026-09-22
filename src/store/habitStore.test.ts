@@ -331,3 +331,68 @@ describe('getCalendar', () => {
     expect(store.getCalendar('nope', 2026, 8)).toBeNull()
   })
 })
+
+describe('getStats / getAggregateStats', () => {
+  function seedStore() {
+    let clock = new Date(2026, 8, 1, 12, 0)
+    const { store } = makeStore({ now: () => clock })
+    const run = store.createHabit({ name: 'Run', icon: '🏃' })
+    const meditate = store.createHabit({ name: 'Meditate', icon: '🧘' })
+
+    // Both complete Sep 1–3; only Meditate continues through Sep 23.
+    for (let day = 1; day <= 3; day++) {
+      clock = new Date(2026, 8, day, 20, 0)
+      store.toggleCompletion(run.id)
+      store.toggleCompletion(meditate.id)
+    }
+    for (let day = 4; day <= 23; day++) {
+      clock = new Date(2026, 8, day, 20, 0)
+      store.toggleCompletion(meditate.id)
+    }
+    clock = new Date(2026, 8, 23, 21, 0)
+    return { store, run, meditate }
+  }
+
+  it('computes per-habit stats with the store clock', () => {
+    const { store, run } = seedStore()
+    const stats = store.getStats(run.id)!
+
+    expect(stats.currentStreak).toBe(0) // broke after Sep 3
+    expect(stats.bestStreak).toBe(3)
+    expect(stats.last30.completed).toBe(3)
+    expect(stats.last90.completed).toBe(3)
+    expect(stats.lifetime).toEqual({
+      completed: 3,
+      elapsed: 23, // Sep 1..23
+      rate: 3 / 23,
+    })
+  })
+
+  it('reports a living chain as the current streak', () => {
+    const { store, meditate } = seedStore()
+    const stats = store.getStats(meditate.id)!
+    expect(stats.currentStreak).toBe(23)
+    expect(stats.bestStreak).toBe(23)
+    expect(stats.lifetime.rate).toBe(1)
+  })
+
+  it('pools only active habits in the aggregate', () => {
+    const { store, run } = seedStore()
+
+    const before = store.getAggregateStats()
+    expect(before.lifetime.completed).toBe(26) // 3 + 23
+    expect(before.lifetime.elapsed).toBe(46) // 23 + 23
+    expect(before.lifetime.rate).toBe(26 / 46)
+
+    store.archiveHabit(run.id)
+    const after = store.getAggregateStats()
+    expect(after.lifetime.completed).toBe(23)
+    expect(after.lifetime.elapsed).toBe(23)
+    expect(after.lifetime.rate).toBe(1)
+  })
+
+  it('returns null stats for unknown ids', () => {
+    const { store } = makeStore()
+    expect(store.getStats('nope')).toBeNull()
+  })
+})

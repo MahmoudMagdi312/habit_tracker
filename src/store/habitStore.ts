@@ -4,6 +4,8 @@ import { currentStreak, streakStatus } from '../domain/streaks'
 import type { StreakInfo } from '../domain/streaks'
 import { buildCalendar } from '../domain/calendar'
 import type { CalendarMonth } from '../domain/calendar'
+import { aggregateStats, habitStats } from '../domain/stats'
+import type { AggregateStats, HabitStats } from '../domain/stats'
 import {
   createLocalStorageAdapter,
   loadState,
@@ -24,6 +26,10 @@ export interface HabitStore {
   getStreakInfo(id: string): StreakInfo | null
   /** Month grid for a habit (0-based monthIndex), using the store's clock. Null for unknown ids. */
   getCalendar(id: string, year: number, monthIndex: number): CalendarMonth | null
+  /** Streaks + completion windows for a habit, using the store's clock. Null for unknown ids. */
+  getStats(id: string): HabitStats | null
+  /** Pooled completion windows across active (non-archived) habits. */
+  getAggregateStats(): AggregateStats
   /** Updates name/description/icon/color. Throws on a blank name; no-op for unknown ids. */
   updateHabit(id: string, input: CreateHabitInput): void
   /** Archives a habit (hides it from Today, keeps history). No-op if already archived or unknown. */
@@ -110,6 +116,15 @@ export function createHabitStore(deps: StoreDependencies = {}): HabitStore {
       const habit = state.habits.find((h) => h.id === id)
       if (!habit) return null
       return buildCalendar(habit, toLocalDateKey(now()), year, monthIndex)
+    },
+    getStats(id) {
+      const habit = state.habits.find((h) => h.id === id)
+      if (!habit) return null
+      return habitStats(habit, toLocalDateKey(now()))
+    },
+    getAggregateStats() {
+      const active = state.habits.filter((h) => !h.archivedAt)
+      return aggregateStats(active, toLocalDateKey(now()))
     },
     updateHabit(id, input) {
       const existing = state.habits.find((h) => h.id === id)

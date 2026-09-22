@@ -1,11 +1,12 @@
 import { useState, useSyncExternalStore } from 'react'
 import CalendarView from './components/CalendarView'
 import HabitForm from './components/HabitForm'
+import StatsView from './components/StatsView'
 import TodayList from './components/TodayList'
 import { defaultStore } from './store/defaultStore'
 import type { HabitStore } from './store/habitStore'
 
-type View = 'today' | 'calendar'
+type View = 'today' | 'calendar' | 'stats'
 
 export default function App({
   store = defaultStore,
@@ -72,9 +73,24 @@ export default function App({
         >
           Calendar
         </button>
+        <button
+          type="button"
+          onClick={() => setView('stats')}
+          aria-current={view === 'stats' ? 'page' : undefined}
+        >
+          Stats
+        </button>
       </nav>
 
-      {view === 'calendar' ? (
+      {view === 'stats' ? (
+        <StatsView
+          aggregate={store.getAggregateStats()}
+          entries={allHabits.flatMap((habit) => {
+            const stats = store.getStats(habit.id)
+            return stats ? [{ habit, stats }] : []
+          })}
+        />
+      ) : view === 'calendar' ? (
         selectedHabit && month ? (
           <CalendarView
             habit={selectedHabit}
