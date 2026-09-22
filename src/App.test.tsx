@@ -233,4 +233,118 @@ describe('App', () => {
     expect(screen.getByText('Run')).toBeInTheDocument()
     expect(store.getState().habits.map((h) => h.name)).toEqual(['Run'])
   })
+
+  it('reaches the calendar from the nav and shows the month grid', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    store.createHabit({ name: 'Run' })
+    render(<App store={store} />)
+
+    await user.click(screen.getByRole('button', { name: 'Calendar' }))
+
+    expect(screen.getByText('September 2026')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'September 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'September 30' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('combobox', { name: 'Select habit' }),
+    ).toBeInTheDocument()
+    // Today view is hidden while the calendar is open
+    expect(screen.queryByText('Add habit')).not.toBeInTheDocument()
+  })
+
+  it('visually distinguishes completed, missed, blocked, and future days', async () => {
+    const user = userEvent.setup()
+    const storage = createMemoryStorage()
+    let clock = new Date(2026, 8, 21, 9, 0)
+    const store = createHabitStore({ storage, now: () => clock })
+    const habit = store.createHabit({ name: 'Run' })
+    store.toggleCompletion(habit.id) // created + done Sep 21
+
+    clock = new Date(2026, 8, 23, 9, 0)
+    render(<App store={store} />)
+    await user.click(screen.getByRole('button', { name: 'Calendar' }))
+
+    const sep5 = screen.getByRole('button', { name: 'September 5' })
+    expect(sep5).toBeDisabled()
+    expect(sep5.closest('.cell')).toHaveClass('blocked')
+
+    const sep21 = screen.getByRole('button', { name: 'September 21' })
+    expect(sep21).toHaveAttribute('aria-pressed', 'true')
+    expect(sep21.closest('.cell')).toHaveClass('completed')
+
+    const sep22 = screen.getByRole('button', { name: 'September 22' })
+    expect(sep22).toHaveAttribute('aria-pressed', 'false')
+    expect(sep22).toBeEnabled()
+    expect(sep22.closest('.cell')).toHaveClass('missed')
+
+    expect(
+      screen.getByRole('button', { name: 'September 23' }).closest('.cell'),
+    ).toHaveClass('today')
+
+    const sep26 = screen.getByRole('button', { name: 'September 26' })
+    expect(sep26).toBeDisabled()
+    expect(sep26.closest('.cell')).toHaveClass('future')
+  })
+
+  it('fixes a forgotten past day from the calendar and updates the streak', async () => {
+    const user = userEvent.setup()
+    const storage = createMemoryStorage()
+    let clock = new Date(2026, 8, 21, 9, 0)
+    const store = createHabitStore({ storage, now: () => clock })
+    const habit = store.createHabit({ name: 'Run' })
+    store.toggleCompletion(habit.id) // done Sep 21, forgot Sep 22
+
+    clock = new Date(2026, 8, 23, 9, 0)
+    render(<App store={store} />)
+    await user.click(screen.getByRole('button', { name: 'Calendar' }))
+
+    const sep22 = screen.getByRole('button', { name: 'September 22' })
+    await user.click(sep22)
+    expect(
+      screen.getByRole('button', { name: 'September 22' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(store.getState().habits[0].completedDates).toEqual([
+      '2026-09-21',
+      '2026-09-22',
+    ])
+
+    // Back on Today: the streak now counts 21+22, alive through yesterday.
+    await user.click(screen.getByRole('button', { name: 'Today' }))
+    expect(screen.getByText('🔥 2 days')).toBeInTheDocument()
+    expect(screen.getByText('at risk')).toBeInTheDocument()
+  })
+
+  it('navigates between months', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    store.createHabit({ name: 'Run' })
+    render(<App store={store} />)
+    await user.click(screen.getByRole('button', { name: 'Calendar' }))
+
+    await user.click(screen.getByRole('button', { name: 'Next month' }))
+    expect(screen.getByText('October 2026')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'October 1' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Previous month' }))
+    await user.click(screen.getByRole('button', { name: 'Previous month' }))
+    expect(screen.getByText('August 2026')).toBeInTheDocument()
+  })
+
+  it('keeps archived habits selectable in the calendar', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    const yoga = store.createHabit({ name: 'Yoga' })
+    store.createHabit({ name: 'Run' })
+    store.archiveHabit(yoga.id)
+    render(<App store={store} />)
+
+    await user.click(screen.getByRole('button', { name: 'Calendar' }))
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Select habit' }),
+      yoga.id,
+    )
+    expect(
+      screen.getByRole('combobox', { name: 'Select habit' }),
+    ).toHaveValue(yoga.id)
+  })
 })

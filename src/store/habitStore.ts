@@ -2,6 +2,8 @@ import type { CreateHabitInput, Habit, HabitStoreState } from '../domain/types'
 import { toLocalDateKey } from '../domain/dates'
 import { currentStreak, streakStatus } from '../domain/streaks'
 import type { StreakInfo } from '../domain/streaks'
+import { buildCalendar } from '../domain/calendar'
+import type { CalendarMonth } from '../domain/calendar'
 import {
   createLocalStorageAdapter,
   loadState,
@@ -20,6 +22,8 @@ export interface HabitStore {
   toggleCompletion(id: string, date?: string): void
   /** Streak count + status for a habit, using the store's clock. Null for unknown ids. */
   getStreakInfo(id: string): StreakInfo | null
+  /** Month grid for a habit (0-based monthIndex), using the store's clock. Null for unknown ids. */
+  getCalendar(id: string, year: number, monthIndex: number): CalendarMonth | null
   /** Updates name/description/icon/color. Throws on a blank name; no-op for unknown ids. */
   updateHabit(id: string, input: CreateHabitInput): void
   /** Archives a habit (hides it from Today, keeps history). No-op if already archived or unknown. */
@@ -101,6 +105,11 @@ export function createHabitStore(deps: StoreDependencies = {}): HabitStore {
         streak: currentStreak(habit.completedDates, today),
         status: streakStatus(habit, today),
       }
+    },
+    getCalendar(id, year, monthIndex) {
+      const habit = state.habits.find((h) => h.id === id)
+      if (!habit) return null
+      return buildCalendar(habit, toLocalDateKey(now()), year, monthIndex)
     },
     updateHabit(id, input) {
       const existing = state.habits.find((h) => h.id === id)

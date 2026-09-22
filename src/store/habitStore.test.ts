@@ -297,3 +297,37 @@ describe('habit management', () => {
     expect(parsed.habits).toEqual([])
   })
 })
+
+describe('getCalendar', () => {
+  it('builds month cells with states from the store clock', () => {
+    let clock = new Date(2026, 8, 21, 9, 0)
+    const { store } = makeStore({ now: () => clock })
+    const habit = store.createHabit({ name: 'Run' })
+    store.toggleCompletion(habit.id) // completed Sep 21
+
+    clock = new Date(2026, 8, 23, 9, 0) // now Sep 23
+    const calendar = store.getCalendar(habit.id, 2026, 8)
+    expect(calendar).not.toBeNull()
+
+    const cellOf = (day: number) =>
+      calendar!.cells.find((c) => c?.day === day)!
+
+    expect(cellOf(5).state).toBe('blocked')
+    expect(cellOf(5).toggleable).toBe(false)
+    expect(cellOf(21).state).toBe('completed')
+    expect(cellOf(22).state).toBe('missed')
+    expect(cellOf(22).toggleable).toBe(true)
+    expect(cellOf(23).state).toBe('today')
+    expect(cellOf(26).state).toBe('future')
+    expect(cellOf(26).toggleable).toBe(false)
+    // Sep 1 2026 is a Tuesday → two leading blanks
+    expect(calendar!.cells[0]).toBeNull()
+    expect(calendar!.cells[1]).toBeNull()
+    expect(calendar!.cells[2]?.day).toBe(1)
+  })
+
+  it('returns null for unknown ids', () => {
+    const { store } = makeStore()
+    expect(store.getCalendar('nope', 2026, 8)).toBeNull()
+  })
+})

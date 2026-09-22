@@ -1,8 +1,11 @@
 import { useState, useSyncExternalStore } from 'react'
+import CalendarView from './components/CalendarView'
 import HabitForm from './components/HabitForm'
 import TodayList from './components/TodayList'
 import { defaultStore } from './store/defaultStore'
 import type { HabitStore } from './store/habitStore'
+
+type View = 'today' | 'calendar'
 
 export default function App({
   store = defaultStore,
@@ -15,8 +18,15 @@ export default function App({
     store.getState,
   )
   const [showForm, setShowForm] = useState(false)
+  const [view, setView] = useState<View>('today')
+  const [calendarHabitId, setCalendarHabitId] = useState<string | null>(null)
+  const [yearMonth, setYearMonth] = useState(() => {
+    const [year, month] = store.getToday().split('-').map(Number)
+    return { year, month: month - 1 }
+  })
 
-  const activeHabits = state.habits.filter((habit) => !habit.archivedAt)
+  const allHabits = state.habits
+  const activeHabits = allHabits.filter((habit) => !habit.archivedAt)
   const rows = activeHabits.map((habit) => {
     const info = store.getStreakInfo(habit.id)
     return {
@@ -26,44 +36,100 @@ export default function App({
     }
   })
 
+  const selectedHabit =
+    allHabits.find((habit) => habit.id === calendarHabitId) ??
+    allHabits[0] ??
+    null
+  const month = selectedHabit
+    ? store.getCalendar(selectedHabit.id, yearMonth.year, yearMonth.month)
+    : null
+
+  function shiftMonth(delta: number) {
+    setYearMonth(({ year, month: m }) => {
+      const next = m + delta
+      if (next < 0) return { year: year - 1, month: 11 }
+      if (next > 11) return { year: year + 1, month: 0 }
+      return { year, month: next }
+    })
+  }
+
   return (
     <main>
       <h1>Habit Tracker</h1>
 
-      <section aria-label="Today">
-        {activeHabits.length === 0 && !showForm ? (
-          <div className="empty-state">
-            <p>No habits yet.</p>
-            <button type="button" onClick={() => setShowForm(true)}>
-              Create your first habit
-            </button>
-          </div>
-        ) : (
-          <>
-            <TodayList
-              rows={rows}
-              onToggle={(id) => store.toggleCompletion(id)}
-              onEdit={(id, input) => store.updateHabit(id, input)}
-              onArchive={(id) => store.archiveHabit(id)}
-              onDelete={(id) => store.deleteHabit(id)}
-            />
-            {!showForm && (
-              <button type="button" onClick={() => setShowForm(true)}>
-                Add habit
-              </button>
-            )}
-          </>
-        )}
+      <nav aria-label="Views">
+        <button
+          type="button"
+          onClick={() => setView('today')}
+          aria-current={view === 'today' ? 'page' : undefined}
+        >
+          Today
+        </button>
+        <button
+          type="button"
+          onClick={() => setView('calendar')}
+          aria-current={view === 'calendar' ? 'page' : undefined}
+        >
+          Calendar
+        </button>
+      </nav>
 
-        {showForm && (
-          <HabitForm
-            onSubmit={(input) => {
-              store.createHabit(input)
-              setShowForm(false)
-            }}
+      {view === 'calendar' ? (
+        selectedHabit && month ? (
+          <CalendarView
+            habit={selectedHabit}
+            habits={allHabits}
+            month={month}
+            onSelectHabit={setCalendarHabitId}
+            onPrevMonth={() => shiftMonth(-1)}
+            onNextMonth={() => shiftMonth(1)}
+            onToggleDate={(date) =>
+              selectedHabit && store.toggleCompletion(selectedHabit.id, date)
+            }
           />
-        )}
-      </section>
+        ) : (
+          <section aria-label="Calendar">
+            <div className="empty-state">
+              <p>No habits yet — create one in the Today view.</p>
+            </div>
+          </section>
+        )
+      ) : (
+        <section aria-label="Today">
+          {activeHabits.length === 0 && !showForm ? (
+            <div className="empty-state">
+              <p>No habits yet.</p>
+              <button type="button" onClick={() => setShowForm(true)}>
+                Create your first habit
+              </button>
+            </div>
+          ) : (
+            <>
+              <TodayList
+                rows={rows}
+                onToggle={(id) => store.toggleCompletion(id)}
+                onEdit={(id, input) => store.updateHabit(id, input)}
+                onArchive={(id) => store.archiveHabit(id)}
+                onDelete={(id) => store.deleteHabit(id)}
+              />
+              {!showForm && (
+                <button type="button" onClick={() => setShowForm(true)}>
+                  Add habit
+                </button>
+              )}
+            </>
+          )}
+
+          {showForm && (
+            <HabitForm
+              onSubmit={(input) => {
+                store.createHabit(input)
+                setShowForm(false)
+              }}
+            />
+          )}
+        </section>
+      )}
     </main>
   )
 }
