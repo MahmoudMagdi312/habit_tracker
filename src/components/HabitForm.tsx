@@ -6,25 +6,33 @@ const ICONS = ['🎯', '💧', '📖', '🏃', '🧘', '💤']
 const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7']
 
 export default function HabitForm({
-  onCreate,
+  onSubmit,
+  initialValues,
+  submitLabel = 'Create habit',
+  ariaLabel = 'Create habit',
+  onCancel,
 }: {
-  onCreate: (input: CreateHabitInput) => void
+  onSubmit: (input: CreateHabitInput) => void
+  initialValues?: Partial<CreateHabitInput>
+  submitLabel?: string
+  ariaLabel?: string
+  onCancel?: () => void
 }) {
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [icon, setIcon] = useState(ICONS[0])
-  const [color, setColor] = useState(COLORS[0])
+  const [name, setName] = useState(initialValues?.name ?? '')
+  const [description, setDescription] = useState(
+    initialValues?.description ?? '',
+  )
+  const [icon, setIcon] = useState(initialValues?.icon ?? ICONS[0])
+  const [color, setColor] = useState(initialValues?.color ?? COLORS[0])
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!name.trim()) return
-    onCreate({ name, description, icon, color })
-    setName('')
-    setDescription('')
+    onSubmit({ name, description, icon, color })
   }
 
   return (
-    <form onSubmit={handleSubmit} aria-label="Create habit" className="habit-form">
+    <form onSubmit={handleSubmit} aria-label={ariaLabel} className="habit-form">
       <div className="field">
         <label htmlFor="habit-name">Name</label>
         <input
@@ -79,13 +87,24 @@ export default function HabitForm({
                 onChange={() => setColor(option)}
                 aria-label={`color ${option}`}
               />
-              <span className="swatch" style={{ backgroundColor: option }} aria-hidden="true" />
+              <span
+                className="swatch"
+                style={{ backgroundColor: option }}
+                aria-hidden="true"
+              />
             </label>
           ))}
         </div>
       </fieldset>
 
-      <button type="submit">Create habit</button>
+      <div className="form-actions">
+        <button type="submit">{submitLabel}</button>
+        {onCancel && (
+          <button type="button" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
   )
 }

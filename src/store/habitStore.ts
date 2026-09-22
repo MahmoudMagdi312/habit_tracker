@@ -20,6 +20,12 @@ export interface HabitStore {
   toggleCompletion(id: string, date?: string): void
   /** Streak count + status for a habit, using the store's clock. Null for unknown ids. */
   getStreakInfo(id: string): StreakInfo | null
+  /** Updates name/description/icon/color. Throws on a blank name; no-op for unknown ids. */
+  updateHabit(id: string, input: CreateHabitInput): void
+  /** Archives a habit (hides it from Today, keeps history). No-op if already archived or unknown. */
+  archiveHabit(id: string): void
+  /** Permanently removes a habit and its history. No-op for unknown ids. */
+  deleteHabit(id: string): void
 }
 
 export interface StoreDependencies {
@@ -95,6 +101,39 @@ export function createHabitStore(deps: StoreDependencies = {}): HabitStore {
         streak: currentStreak(habit.completedDates, today),
         status: streakStatus(habit, today),
       }
+    },
+    updateHabit(id, input) {
+      const existing = state.habits.find((h) => h.id === id)
+      if (!existing) return
+      const name = input.name.trim()
+      if (!name) throw new Error('Habit name is required')
+      const description = input.description?.trim()
+
+      const { description: _oldDescription, ...rest } = existing
+      const updated: Habit = {
+        ...rest,
+        name,
+        icon: input.icon?.trim() || existing.icon,
+        color: input.color?.trim() || existing.color,
+        ...(description ? { description } : {}),
+      }
+      commit({
+        habits: state.habits.map((h) => (h.id === id ? updated : h)),
+      })
+    },
+    archiveHabit(id) {
+      if (!state.habits.some((h) => h.id === id && !h.archivedAt)) return
+      commit({
+        habits: state.habits.map((h) =>
+          h.id === id && !h.archivedAt
+            ? { ...h, archivedAt: toLocalDateKey(now()) }
+            : h,
+        ),
+      })
+    },
+    deleteHabit(id) {
+      if (!state.habits.some((h) => h.id === id)) return
+      commit({ habits: state.habits.filter((h) => h.id !== id) })
     },
   }
 }

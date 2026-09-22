@@ -209,3 +209,91 @@ describe('streaks through the store (fake clock)', () => {
     expect(store.getStreakInfo('nope')).toBeNull()
   })
 })
+
+describe('habit management', () => {
+  it('updates name, icon, color, and description and persists the change', () => {
+    const { store, storage } = makeStore()
+    const habit = store.createHabit({ name: 'Yoga' })
+
+    store.updateHabit(habit.id, {
+      name: '  Power yoga  ',
+      description: ' Morning flow ',
+      icon: '🧘',
+      color: '#a855f7',
+    })
+
+    const updated = store.getState().habits[0]
+    expect(updated.name).toBe('Power yoga')
+    expect(updated.description).toBe('Morning flow')
+    expect(updated.icon).toBe('🧘')
+    expect(updated.color).toBe('#a855f7')
+
+    const reloaded = createHabitStore({ storage, now: () => NOW })
+    expect(reloaded.getState().habits[0].name).toBe('Power yoga')
+  })
+
+  it('clears the description when an empty one is given', () => {
+    const { store } = makeStore()
+    const habit = store.createHabit({ name: 'Yoga', description: 'old note' })
+    store.updateHabit(habit.id, { name: 'Yoga', description: '   ' })
+    expect(store.getState().habits[0].description).toBeUndefined()
+  })
+
+  it('throws on a blank name and leaves state untouched', () => {
+    const { store } = makeStore()
+    const habit = store.createHabit({ name: 'Yoga' })
+    const before = store.getState()
+    expect(() => store.updateHabit(habit.id, { name: '  ' })).toThrow(
+      'Habit name is required',
+    )
+    expect(store.getState()).toBe(before)
+  })
+
+  it('is a no-op for unknown ids', () => {
+    const { store } = makeStore()
+    store.createHabit({ name: 'Yoga' })
+    const before = store.getState()
+    store.updateHabit('nope', { name: 'Other' })
+    store.archiveHabit('nope')
+    store.deleteHabit('nope')
+    expect(store.getState()).toBe(before)
+  })
+
+  it('archives with today as archivedAt, keeping history intact', () => {
+    const { store, storage } = makeStore()
+    const habit = store.createHabit({ name: 'Yoga' })
+    store.toggleCompletion(habit.id)
+
+    store.archiveHabit(habit.id)
+
+    const archived = store.getState().habits[0]
+    expect(archived.archivedAt).toBe(TODAY)
+    expect(archived.completedDates).toEqual([TODAY])
+
+    const reloaded = createHabitStore({ storage, now: () => NOW })
+    expect(reloaded.getState().habits[0].archivedAt).toBe(TODAY)
+  })
+
+  it('does not re-archive (date stays at the first archive day)', () => {
+    let clock = new Date(2026, 8, 23, 10, 0)
+    const { store } = makeStore({ now: () => clock })
+    const habit = store.createHabit({ name: 'Yoga' })
+    store.archiveHabit(habit.id)
+
+    clock = new Date(2026, 8, 25, 10, 0)
+    store.archiveHabit(habit.id)
+    expect(store.getState().habits[0].archivedAt).toBe('2026-09-23')
+  })
+
+  it('deletes a habit and its history permanently, persisted to storage', () => {
+    const { store, storage } = makeStore()
+    const habit = store.createHabit({ name: 'Yoga' })
+    store.toggleCompletion(habit.id)
+
+    store.deleteHabit(habit.id)
+
+    expect(store.getState().habits).toEqual([])
+    const parsed = JSON.parse(storage.raw!)
+    expect(parsed.habits).toEqual([])
+  })
+})

@@ -40,7 +40,13 @@ export default function App({
           </div>
         ) : (
           <>
-            <TodayList rows={rows} onToggle={(id) => store.toggleCompletion(id)} />
+            <TodayList
+              rows={rows}
+              onToggle={(id) => store.toggleCompletion(id)}
+              onEdit={(id, input) => store.updateHabit(id, input)}
+              onArchive={(id) => store.archiveHabit(id)}
+              onDelete={(id) => store.deleteHabit(id)}
+            />
             {!showForm && (
               <button type="button" onClick={() => setShowForm(true)}>
                 Add habit
@@ -51,7 +57,7 @@ export default function App({
 
         {showForm && (
           <HabitForm
-            onCreate={(input) => {
+            onSubmit={(input) => {
               store.createHabit(input)
               setShowForm(false)
             }}

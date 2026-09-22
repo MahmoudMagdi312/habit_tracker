@@ -134,4 +134,103 @@ describe('App', () => {
     expect(screen.getByText('starts today')).toBeInTheDocument()
     expect(screen.queryByText('streak lost')).not.toBeInTheDocument()
   })
+
+  it('edits a habit through the row edit form', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    store.createHabit({ name: 'Yoga' })
+    render(<App store={store} />)
+
+    await user.click(screen.getByRole('button', { name: 'Edit Yoga' }))
+    const nameInput = screen.getByLabelText('Name')
+    expect(nameInput).toHaveValue('Yoga')
+
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Power yoga')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    expect(screen.getByText('Power yoga')).toBeInTheDocument()
+    expect(screen.queryByText('Yoga')).not.toBeInTheDocument()
+    expect(store.getState().habits[0].name).toBe('Power yoga')
+  })
+
+  it('cancels editing without changing the habit', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    store.createHabit({ name: 'Yoga' })
+    render(<App store={store} />)
+
+    await user.click(screen.getByRole('button', { name: 'Edit Yoga' }))
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'Something else')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.getByText('Yoga')).toBeInTheDocument()
+    expect(store.getState().habits[0].name).toBe('Yoga')
+  })
+
+  it('archives a habit after confirmation, keeping its history', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    const habit = store.createHabit({ name: 'Yoga' })
+    store.toggleCompletion(habit.id)
+    render(<App store={store} />)
+
+    await user.click(screen.getByRole('button', { name: 'Archive Yoga' }))
+    expect(screen.getByText(/Archive .*Yoga/)).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Confirm archive Yoga' }),
+    )
+
+    // Gone from Today…
+    expect(screen.queryByText('Yoga')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('checkbox', { name: /Yoga/ }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Create your first habit' }),
+    ).toBeInTheDocument()
+    // …but history and the habit itself survive in the store.
+    expect(store.getState().habits[0].archivedAt).toBe('2026-09-23')
+    expect(store.getState().habits[0].completedDates).toEqual(['2026-09-23'])
+  })
+
+  it('cancels an archive confirmation without archiving', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    store.createHabit({ name: 'Yoga' })
+    render(<App store={store} />)
+
+    await user.click(screen.getByRole('button', { name: 'Archive Yoga' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(store.getState().habits[0].archivedAt).toBeUndefined()
+    expect(
+      screen.getByRole('button', { name: 'Archive Yoga' }),
+    ).toBeInTheDocument()
+  })
+
+  it('deletes a habit after confirmation', async () => {
+    const user = userEvent.setup()
+    const { store } = makeStore()
+    store.createHabit({ name: 'Yoga' })
+    store.createHabit({ name: 'Run' })
+    render(<App store={store} />)
+
+    // Cancel first: the confirm flow is dismissable.
+    await user.click(screen.getByRole('button', { name: 'Delete Yoga' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByText('Yoga')).toBeInTheDocument()
+
+    // Now really delete.
+    await user.click(screen.getByRole('button', { name: 'Delete Yoga' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Confirm delete Yoga' }),
+    )
+
+    expect(screen.queryByText('Yoga')).not.toBeInTheDocument()
+    expect(screen.getByText('Run')).toBeInTheDocument()
+    expect(store.getState().habits.map((h) => h.name)).toEqual(['Run'])
+  })
 })

@@ -69,6 +69,7 @@ button:hover {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .habit label {
@@ -215,4 +216,55 @@ button:hover {
 
 .habit.streak-lost .habit-name {
   opacity: 0.6;
+}
+
+/* Row actions & confirmations */
+
+.habit.editing {
+  display: block;
+}
+
+.habit.editing .habit-form {
+  border: none;
+  padding: 0;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.row-actions button,
+.form-actions button {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.4rem;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.form-actions button[type='submit'],
+.row-actions button[aria-label^='Confirm'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.confirm-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.habit.confirming {
+  outline: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  outline-offset: -1px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
 }
