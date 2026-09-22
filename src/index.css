@@ -64,6 +64,13 @@ button:hover {
   background: color-mix(in srgb, var(--habit-color) 8%, transparent);
 }
 
+.habit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .habit label {
   display: flex;
   align-items: center;
@@ -169,4 +176,43 @@ button:hover {
   width: 1.4rem;
   height: 1.4rem;
   border-radius: 0.35rem;
+}
+
+/* Streak badges */
+
+.streak-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.streak-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.streak-status.at-risk {
+  color: #d97706;
+}
+
+.streak-status.starts-today {
+  opacity: 0.65;
+}
+
+.streak-status.streak-lost {
+  color: #dc2626;
+}
+
+.habit.at-risk {
+  outline: 2px solid #d97706;
+  outline-offset: -1px;
+}
+
+.habit.streak-lost .habit-name {
+  opacity: 0.6;
 }

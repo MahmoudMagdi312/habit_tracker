@@ -16,8 +16,15 @@ export default function App({
   )
   const [showForm, setShowForm] = useState(false)
 
-  const today = store.getToday()
   const activeHabits = state.habits.filter((habit) => !habit.archivedAt)
+  const rows = activeHabits.map((habit) => {
+    const info = store.getStreakInfo(habit.id)
+    return {
+      habit,
+      streak: info?.streak ?? 0,
+      status: info?.status ?? 'streak-lost',
+    }
+  })
 
   return (
     <main>
@@ -33,11 +40,7 @@ export default function App({
           </div>
         ) : (
           <>
-            <TodayList
-              habits={activeHabits}
-              today={today}
-              onToggle={(id) => store.toggleCompletion(id)}
-            />
+            <TodayList rows={rows} onToggle={(id) => store.toggleCompletion(id)} />
             {!showForm && (
               <button type="button" onClick={() => setShowForm(true)}>
                 Add habit

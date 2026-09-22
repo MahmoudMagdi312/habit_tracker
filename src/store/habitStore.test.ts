@@ -170,3 +170,42 @@ describe('persistence', () => {
     expect(store.getState().habits).toEqual([])
   })
 })
+
+describe('streaks through the store (fake clock)', () => {
+  it('keeps a check-off made just before midnight on the correct day', () => {
+    let clock = new Date(2026, 8, 23, 23, 59)
+    const { store } = makeStore({ now: () => clock })
+    const habit = store.createHabit({ name: 'Late night' })
+    store.toggleCompletion(habit.id)
+    expect(store.getToday()).toBe('2026-09-23')
+
+    // Cross local midnight: yesterday's check-off keeps the chain alive.
+    clock = new Date(2026, 8, 24, 0, 1)
+    expect(store.getToday()).toBe('2026-09-24')
+    expect(store.getStreakInfo(habit.id)).toEqual({
+      streak: 1,
+      status: 'at-risk',
+    })
+
+    // Completing today extends it to 2.
+    store.toggleCompletion(habit.id)
+    expect(store.getStreakInfo(habit.id)).toEqual({
+      streak: 2,
+      status: 'done',
+    })
+  })
+
+  it('reports starts-today for a habit created today with no check-off', () => {
+    const { store } = makeStore()
+    const habit = store.createHabit({ name: 'Fresh' })
+    expect(store.getStreakInfo(habit.id)).toEqual({
+      streak: 0,
+      status: 'starts-today',
+    })
+  })
+
+  it('returns null for unknown ids', () => {
+    const { store } = makeStore()
+    expect(store.getStreakInfo('nope')).toBeNull()
+  })
+})

@@ -1,5 +1,7 @@
 import type { CreateHabitInput, Habit, HabitStoreState } from '../domain/types'
 import { toLocalDateKey } from '../domain/dates'
+import { currentStreak, streakStatus } from '../domain/streaks'
+import type { StreakInfo } from '../domain/streaks'
 import {
   createLocalStorageAdapter,
   loadState,
@@ -16,6 +18,8 @@ export interface HabitStore {
   createHabit(input: CreateHabitInput): Habit
   /** Toggles completion for a date (defaults to today). No-op for dates before createdAt or unknown ids. */
   toggleCompletion(id: string, date?: string): void
+  /** Streak count + status for a habit, using the store's clock. Null for unknown ids. */
+  getStreakInfo(id: string): StreakInfo | null
 }
 
 export interface StoreDependencies {
@@ -82,6 +86,15 @@ export function createHabitStore(deps: StoreDependencies = {}): HabitStore {
           h.id === id ? { ...h, completedDates } : h,
         ),
       })
+    },
+    getStreakInfo(id) {
+      const habit = state.habits.find((h) => h.id === id)
+      if (!habit) return null
+      const today = toLocalDateKey(now())
+      return {
+        streak: currentStreak(habit.completedDates, today),
+        status: streakStatus(habit, today),
+      }
     },
   }
 }
