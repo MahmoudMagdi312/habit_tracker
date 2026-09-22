@@ -413,6 +413,53 @@ describe('App', () => {
       .getByText('Overall')
       .closest('.stat-card')! as HTMLElement
     expect(within(overallCard).getAllByText('57%')).toHaveLength(3)
+
+    // Rate rows double as bars: filled to the value, in the habit's color.
+    const runBars = [...runCard.querySelectorAll('.stat-row.barred')]
+    expect(runBars).toHaveLength(3)
+    for (const bar of runBars) {
+      const style = bar.getAttribute('style') ?? ''
+      expect(style).toContain('13%')
+      expect(style).toContain('#3b82f6')
+    }
+    const overallBars = [...overallCard.querySelectorAll('.stat-row.barred')]
+    expect(overallBars).toHaveLength(3)
+    expect(overallBars[0].getAttribute('style')).toContain('57%')
+    expect(overallBars[0].getAttribute('style')).toContain('var(--accent)')
+    // Streak rows stay plain text.
+    expect(runCard.querySelectorAll('.stat-row:not(.barred)')).toHaveLength(2)
+
+    // 30-day activity strip: presentational, with the right state mix.
+    expect(overallCard.querySelector('.activity-strip')).toBeNull()
+    const strip = runCard.querySelector('.activity-strip')
+    expect(strip).toHaveAttribute('aria-hidden', 'true')
+    expect(strip?.querySelectorAll('.strip-cell')).toHaveLength(30)
+    expect(
+      strip?.querySelectorAll('.strip-cell.before-creation'),
+    ).toHaveLength(7) // Aug 25–31 predate the Sep 1 creation
+    expect(strip?.querySelectorAll('.strip-cell.completed')).toHaveLength(3)
+    expect(strip?.querySelectorAll('.strip-cell.missed')).toHaveLength(19)
+    expect(strip?.querySelectorAll('.strip-cell.today')).toHaveLength(1)
+  })
+
+  it('renders empty bar tracks when no day is measurable yet', async () => {
+    const user = userEvent.setup()
+    const storage = createMemoryStorage()
+    let clock = new Date(2026, 8, 23, 12, 0)
+    const store = createHabitStore({ storage, now: () => clock })
+    store.createHabit({ name: 'Run' })
+    clock = new Date(2026, 8, 20, 12, 0) // clock rewound behind createdAt
+
+    render(<App store={store} />)
+    await user.click(screen.getByRole('button', { name: 'Stats' }))
+
+    const runCard = screen.getByText('Run').closest('.stat-card')!
+    const bars = [...runCard.querySelectorAll('.stat-row.barred')]
+    expect(bars).toHaveLength(3)
+    for (const bar of bars) {
+      expect(bar.querySelector('dd')).toHaveTextContent('—')
+      expect(bar.getAttribute('style')).toContain('0%')
+    }
   })
 
   it('navigates between all three views', async () => {

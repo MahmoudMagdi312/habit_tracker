@@ -522,6 +522,62 @@ nav[aria-label='Views'] button[aria-current='page'] {
   font-variant-numeric: tabular-nums;
 }
 
+/* Rate rows double as progress bars (presentational, ::before/::after only). */
+.stat-row.barred {
+  position: relative;
+  padding: 0.1rem 0.5rem;
+  margin: 0 -0.5rem;
+  border-radius: 999px;
+}
+
+.stat-row.barred::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+.stat-row.barred::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--rate, 0%);
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--bar) 30%, transparent);
+}
+
+/* 30-day activity strip (presentational; text rows carry the data). */
+.activity-strip {
+  display: grid;
+  grid-template-columns: repeat(30, 1fr);
+  gap: 2px;
+  margin: 0 0 0.7rem;
+}
+
+.strip-cell {
+  aspect-ratio: 1;
+  border-radius: 2px;
+}
+
+.strip-cell.completed {
+  background: var(--habit-color);
+}
+
+.strip-cell.missed {
+  background: color-mix(in srgb, #dc2626 45%, transparent);
+}
+
+.strip-cell.today {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.strip-cell.before-creation {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
 /* Reminders */
 
 .reminders-bar {

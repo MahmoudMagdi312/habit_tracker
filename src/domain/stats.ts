@@ -85,6 +85,41 @@ export function habitStats(habit: Habit, today: string): HabitStats {
   }
 }
 
+export type StripState = 'before-creation' | 'completed' | 'missed' | 'today'
+
+export interface StripDay {
+  date: string
+  state: StripState
+}
+
+/**
+ * The last `length` local days ending at `today` (oldest -> newest),
+ * one entry per day for the activity strip:
+ * before-creation (before createdAt), completed, missed, or today (pending).
+ * A day completed today reads as 'completed', not 'today'.
+ */
+export function activityStrip(
+  habit: Habit,
+  today: string,
+  length = 30,
+): StripDay[] {
+  const done = new Set(habit.completedDates)
+  const days: StripDay[] = []
+  for (let i = length - 1; i >= 0; i--) {
+    const date = addDays(today, -i)
+    const state: StripState =
+      date < habit.createdAt
+        ? 'before-creation'
+        : done.has(date)
+          ? 'completed'
+          : date === today
+            ? 'today'
+            : 'missed'
+    days.push({ date, state })
+  }
+  return days
+}
+
 /** Pooled rate (sum of numerators / sum of denominators) over the given habits. */
 export function aggregateStats(habits: Habit[], today: string): AggregateStats {
   const perHabit = habits.map((habit) => habitStats(habit, today))

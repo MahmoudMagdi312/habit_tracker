@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  activityStrip,
   aggregateStats,
   bestStreak,
   completionWindow,
@@ -126,5 +127,35 @@ describe('aggregateStats', () => {
   it('is null with no habits', () => {
     const stats = aggregateStats([], '2026-09-23')
     expect(stats.lifetime).toEqual({ completed: 0, elapsed: 0, rate: null })
+  })
+})
+
+describe('activityStrip', () => {
+  it('covers the last 30 days oldest -> newest with the four states', () => {
+    const strip = activityStrip(
+      habit({ completedDates: ['2026-09-01', '2026-09-02', '2026-09-03'] }),
+      '2026-09-23',
+    )
+
+    expect(strip).toHaveLength(30)
+    expect(strip[0].date).toBe('2026-08-25')
+    expect(strip[29].date).toBe('2026-09-23')
+
+    const count = (state: string) =>
+      strip.filter((day) => day.state === state).length
+    // Aug 25–31 predate the Sep 1 creation; Sep 4–22 missed; Sep 23 pending.
+    expect(count('before-creation')).toBe(7)
+    expect(count('completed')).toBe(3)
+    expect(count('missed')).toBe(19)
+    expect(count('today')).toBe(1)
+  })
+
+  it('reads a day completed today as completed, not today', () => {
+    const strip = activityStrip(habit({ completedDates: ['2026-09-23'] }), '2026-09-23')
+    expect(strip[strip.length - 1].state).toBe('completed')
+  })
+
+  it('honours a custom length', () => {
+    expect(activityStrip(habit(), '2026-09-23', 7)).toHaveLength(7)
   })
 })

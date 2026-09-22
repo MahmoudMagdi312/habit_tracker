@@ -110,6 +110,7 @@ export default function App({
       {view === 'stats' ? (
         <StatsView
           aggregate={store.getAggregateStats()}
+          today={store.getToday()}
           entries={allHabits.flatMap((habit) => {
             const stats = store.getStats(habit.id)
             return stats ? [{ habit, stats }] : []
