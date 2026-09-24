@@ -192,18 +192,29 @@ nav[aria-label='Views'] button:hover,
 }
 
 /* Accent-filled members of those families. */
-.form-actions button[type='submit'],
-.row-actions button[aria-label^='Confirm'] {
+.form-actions button[type='submit'] {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
 }
 
-.form-actions button[type='submit']:hover,
-.row-actions button[aria-label^='Confirm']:hover {
+.form-actions button[type='submit']:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
   color: var(--on-accent);
+}
+
+/* Row confirms are destructive too — danger, not accent. */
+.row-actions button[aria-label^='Confirm'] {
+  background: var(--danger-bg);
+  border-color: var(--danger-bg);
+  color: #ffffff;
+}
+
+.row-actions button[aria-label^='Confirm']:hover {
+  background: color-mix(in srgb, var(--danger-bg) 85%, #000000);
+  border-color: color-mix(in srgb, var(--danger-bg) 85%, #000000);
+  color: #ffffff;
 }
 
 /* Destructive confirms read as danger, not accent. */
@@ -318,9 +329,9 @@ nav[aria-label='Views'] button[aria-current='page']:hover {
 /* ── Habit rows ───────────────────────────────────────────────────────────── */
 
 .habit {
-  background: color-mix(in srgb, var(--habit-color) 7%, var(--color-surface));
-  border: 1px solid color-mix(in srgb, var(--habit-color) 42%, transparent);
-  border-left: 6px solid var(--habit-color);
+  position: relative; /* anchors the hover action toolbar (desktop) */
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-1);
   transition:
@@ -341,7 +352,29 @@ nav[aria-label='Views'] button[aria-current='page']:hover {
 
 .habit label {
   padding: 0.8rem 1rem;
-  gap: 0.8rem;
+  gap: 0.75rem;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Quiet-minimal: the habit color lives here — a tinted icon chip. */
+.habit-icon {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--habit-color) 16%, var(--color-surface-2));
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--habit-color) 28%, transparent);
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.habit-name {
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .habit-description {
@@ -351,8 +384,18 @@ nav[aria-label='Views'] button[aria-current='page']:hover {
 }
 
 .habit.at-risk {
-  outline: 2px solid var(--warn);
-  outline-offset: -1px;
+  /* Status lives in the mono pill — the border only whispers it. */
+  outline: none;
+  border-color: color-mix(in srgb, var(--warn) 50%, var(--color-border));
+}
+
+.habit.confirming {
+  outline: none;
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--color-border));
+}
+
+.habit.streak-lost .habit-name {
+  color: var(--danger);
 }
 
 /* Streak badges: number bold, status as a mono micro-pill. */
@@ -394,9 +437,11 @@ nav[aria-label='Views'] button[aria-current='page']:hover {
 
 .row-actions {
   gap: 0.45rem;
+  justify-content: flex-end;
   /* Always its own line: uniform card rhythm instead of content-dependent
      wrapping (long descriptions would otherwise push actions to line 2 on
-     some rows only). */
+     some rows only). Overridden below for hover-capable desktop, where the
+     toolbar floats in the streak-badge slot instead. */
   flex-basis: 100%;
 }
 
@@ -763,6 +808,73 @@ main > .data-section {
 .habit-form {
   animation: enter-up 0.5s var(--ease-out) backwards;
   animation-delay: 100ms;
+}
+
+/* ── Hover-capable desktop: single-line card + reveal toolbar ────────────── */
+
+@media (hover: hover) and (min-width: 481px) {
+  /* At rest: checkbox · icon chip · name/desc …… streak badge (one line). */
+  .habit .row-actions {
+    position: absolute;
+    top: 50%;
+    right: 0.7rem;
+    /* Hidden state sits 4px low; revealed state centers — a small slide. */
+    transform: translateY(-50%) translateY(4px);
+    justify-content: flex-end;
+    padding: 0.3rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-2);
+    /* An opacity:0/visibility:hidden rest left a stable ~30% ghost of the
+       toolbar painted over the streak badge (a stale texture this Chrome
+       build never re-rasters), and so did a fade-OUT: hide-direction
+       transitions freeze at ~30% alpha and survive display:none. Model
+       confirmed by measurement: snaps destroy textures, forward-direction
+       changes refresh them. So rest is display:none with no transition
+       (hiding snaps), and revealing runs a keyframe animation (starts from
+       its own `from` frame — no @starting-style needed — and animates
+       toward visible, which refreshes cleanly). */
+    display: none;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Reveal motion: fade + 4px slide up into the badge slot. */
+  @keyframes toolbar-in {
+    from {
+      opacity: 0;
+      transform: translateY(-50%) translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(-50%);
+    }
+  }
+
+  .habit:hover .row-actions,
+  .habit:focus-within .row-actions,
+  .habit.confirming .row-actions {
+    display: flex;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%);
+    /* Reveal drives itself with a keyframe animation (forward direction —
+       clean raster). No transitions here: the hide path must stay a snap,
+       which is the only way this Chrome build drops the texture. */
+    animation: toolbar-in 0.22s var(--ease-out) backwards;
+  }
+
+  /* Badge and toolbar share the slot: whichever isn't speaking drops out
+     (snaps — no hide-direction transitions anywhere, per the note above).
+     Keyboard focus (including the checkbox) reveals the toolbar too, and
+     the confirming state never hides behind a hover it may not have. */
+  .habit:hover .streak-badge,
+  .habit:focus-within .streak-badge,
+  .habit.confirming .streak-badge {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 /* ── Phone-sized screens ──────────────────────────────────────────────────── */
